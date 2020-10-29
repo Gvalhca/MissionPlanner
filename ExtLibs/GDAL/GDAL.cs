@@ -10,10 +10,12 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using GMap.NET.MapProviders;
+using MissionPlanner.Utilities;
 
 namespace GDAL
 {
-    public static class GDAL
+    public class GDAL: IGDAL
     {
         private static readonly ILog log = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
@@ -61,6 +63,11 @@ namespace GDAL
 
             // lowest res first
             _cache.Sort((a, b) => { return b.Resolution.CompareTo(a.Resolution); });
+        }
+
+        public GMapProvider GetProvider()
+        {
+            return GDALProvider.Instance;
         }
 
         public static GeoBitmap LoadImageInfo(string file)
@@ -195,11 +202,11 @@ namespace GDAL
 
                 RectLatLng request = new RectLatLng(lat1, lng1, lng2 - lng1, lat2 - lat1);
 
-                //g.DrawString(request.ToString(), Control.DefaultFont, Brushes.Wheat, 0, 0);
+                //g.DrawString(request.ToString(), new Font("Arial", 12), Brushes.Wheat, 0, 0);
 
                 bool cleared = false;
 
-                foreach (var image in _cache)
+                foreach (var image in _cache.ToArray())
                 {
                     // calc the pixel coord within the image rect
                     var ImageTop = (float)map(request.Top, image.Rect.Top, image.Rect.Bottom, 0, image.RasterYSize);
@@ -217,7 +224,7 @@ namespace GDAL
                     {
                         if (!cleared)
                         {
-                            //g.Clear(Color.Red);
+                            //g.FillRectangle(Brushes.Green, rect.X, rect.Y, rect.Width, rect.Height);
                             cleared = true;
                         }
 
@@ -323,6 +330,14 @@ namespace GDAL
 
                     {
                         Bitmap bitmap = new Bitmap(ds.RasterXSize, ds.RasterYSize, PixelFormat.Format32bppArgb);
+                        if (ds.RasterCount == 3)
+                        {
+                            // when we load a 24bit bitmap, we need to set the alpha channel else we get nothing
+                            using (var tmp=Graphics.FromImage(bitmap))
+                            {
+                                tmp.Clear(Color.White);
+                            }
+                        }
 
                         for (int a = 1; a <= ds.RasterCount; a++)
                         {
@@ -383,7 +398,7 @@ namespace GDAL
                             }
                         }
 
-                        //bitmap.Save("gdal.bmp", ImageFormat.Bmp);
+                        //bitmap.Save("gdal.png", ImageFormat.Png);
                         return bitmap;
                     }
                 }
@@ -524,6 +539,11 @@ namespace GDAL
             }
             Console.WriteLine("");
             return 1;
+        }
+
+        void IGDAL.ScanDirectory(string s)
+        {
+            ScanDirectory(s);
         }
     }
 }

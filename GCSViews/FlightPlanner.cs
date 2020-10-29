@@ -1,6 +1,5 @@
 ﻿using DotSpatial.Data;
 using DotSpatial.Projections;
-using GDAL;
 using GeoUtility.GeoSystem;
 using GeoUtility.GeoSystem.Base;
 using GMap.NET;
@@ -39,6 +38,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Xml;
+#if !LIB
+using GDAL;
+#endif
 using GeoAPI.CoordinateSystems;
 using GeoAPI.CoordinateSystems.Transformations;
 using Feature = SharpKml.Dom.Feature;
@@ -46,6 +48,7 @@ using Formatting = Newtonsoft.Json.Formatting;
 using ILog = log4net.ILog;
 using Placemark = SharpKml.Dom.Placemark;
 using Point = System.Drawing.Point;
+using Resources = MissionPlanner.Properties.Resources;
 
 namespace MissionPlanner.GCSViews
 {
@@ -249,7 +252,7 @@ namespace MissionPlanner.GCSViews
             Frame.DisplayMember = "Value";
             Frame.ValueMember = "Key";
             Frame.DataSource = EnumTranslator.EnumToList<altmode>();
-
+ 
             updateMapType(null, null);
 
             // hide the map to prevent redraws when its loaded
@@ -356,6 +359,12 @@ namespace MissionPlanner.GCSViews
             if (keyData == (Keys.Control | Keys.S))
             {
                 saveWPFileToolStripMenuItem_Click(null, null);
+                return true;
+            }
+
+            if (keyData == (Keys.Control | Keys.N))
+            {
+                GMapControl.GDI = !GMapControl.GDI;
                 return true;
             }
 
@@ -3755,6 +3764,7 @@ namespace MissionPlanner.GCSViews
                     FlightData.kmlpolygons.Polygons.Clear();
                     if (file.ToLower().EndsWith("gpkg"))
                     {
+#if !LIB
                         using (var ogr = OGR.Open(file))
                         {
                             ogr.NewPoint += pnt =>
@@ -3789,6 +3799,7 @@ namespace MissionPlanner.GCSViews
 
                             ogr.Process();
                         }
+#endif
                     }
                     else if (file.ToLower().EndsWith("dxf"))
                     {
@@ -4927,16 +4938,20 @@ namespace MissionPlanner.GCSViews
             // do lang stuff here
 
             string file = Settings.GetRunningDirectory() + "mavcmd.xml";
+            Stream st;
 
             if (!File.Exists(file))
             {
-                CustomMessageBox.Show("Missing mavcmd.xml file");
-                return cmd;
+                st = new MemoryStream(Properties.Resources.mavcmd.Select(a => (byte) a).ToArray());
+            }
+            else
+            {
+                st = File.OpenRead(file);
             }
 
             log.Info("Reading MAV_CMD for " + MainV2.comPort.MAV.cs.firmware);
 
-            using (XmlReader reader = XmlReader.Create(file))
+            using (XmlReader reader = XmlReader.Create(st))
             {
                 reader.Read();
                 reader.ReadStartElement("CMD");
@@ -5432,6 +5447,18 @@ Column 1: Field type (RALLY is the only one at the moment -- may have RALLY_LAND
                 {
                 }
 
+                commandlist?.ForEach(pnt =>
+                {
+                    try
+                    {
+                        if(pnt.lat != 0 && pnt.lng != 0)
+                            port.Terrain.checkTerrain(pnt.lat, pnt.lng);
+                    }
+                    catch
+                    {
+                    }
+                });
+
                 ((ProgressReporterDialogue)sender).UpdateProgressAndStatus(100, "Done.");
             }
             catch (Exception ex)
@@ -5646,6 +5673,18 @@ Column 1: Field type (RALLY is the only one at the moment -- may have RALLY_LAND
 
             MainV2.comPort.getHomePositionAsync((byte)MainV2.comPort.sysidcurrent,
                 (byte)MainV2.comPort.compidcurrent);
+
+            commandlist?.ForEach(pnt =>
+            {
+                try
+                {
+                    if(pnt.lat != 0 && pnt.lng != 0)
+                        MainV2.comPort.Terrain.checkTerrain(pnt.lat, pnt.lng);
+                }
+                catch
+                {
+                }
+            });
         }
 
         private void setgradanddistandaz(List<PointLatLngAlt> pointlist, PointLatLngAlt HomeLocation)

@@ -220,7 +220,6 @@ namespace FormsVideoLibrary.Droid
                             return;
                         var index = callbacks.buffers.Pop();
                         var buffer = codec.GetInputBuffer(index);
-                        buffer.Clear();
                         buffer.Put(fs_vps.ToArray());
                         codec.QueueInputBuffer(index, 0, (int)fs_vps.Length, 0, MediaCodecBufferFlags.CodecConfig);
                         spsdone = true;
@@ -241,7 +240,6 @@ namespace FormsVideoLibrary.Droid
 
                         var index = callbacks.buffers.Pop();
                         var buffer = codec.GetInputBuffer(index);
-                        buffer.Clear();
                         buffer.Put(fs_v.ToArray());
                         codec.QueueInputBuffer(index, 0, (int) fs_v.Length, 0, MediaCodecBufferFlags.None);
                         fs_v.SetLength(0);
@@ -270,6 +268,22 @@ namespace FormsVideoLibrary.Droid
                         {
                             rtsprunning = true;
                             Thread.Sleep(500);
+
+                            Device.BeginInvokeOnMainThread(() =>
+                            {
+                                try
+                                {
+                                    this.Invalidate();
+                                }
+                                catch (ObjectDisposedException)
+                                {
+                                    rtspCancel.Cancel();
+                                }
+                                catch
+                                {
+                                }
+                            });
+
                             // existing
                             if (rtspCancel.Token.IsCancellationRequested)
                             {
@@ -288,11 +302,13 @@ namespace FormsVideoLibrary.Droid
                             lastrtp = c.rtp_count;
                         }
 
+                        c.Stop();
+
                         rtsprunning = false;
                     }
-                    catch
+                    catch (Exception ex)
                     {
-
+                        Log.Error("MP", ex.ToString());
                     }
                 }
             });
@@ -347,6 +363,7 @@ namespace FormsVideoLibrary.Droid
             {
                 //videoView.Prepared -= OnVideoViewPrepared;
             }
+
             if (Element != null)
             {
                 Element.UpdateStatus -= OnUpdateStatus;
@@ -357,8 +374,19 @@ namespace FormsVideoLibrary.Droid
             try
             {
                 codec.Stop();
-            } catch { }
-            codec.Dispose();
+            }
+            catch
+            {
+            }
+
+            try
+            {
+                codec.Dispose();
+            }
+            catch
+            {
+            }
+
             rtspCancel = null;
             codec = null;
 

@@ -1,4 +1,6 @@
-﻿extern alias Drawing;
+﻿#if !LIB
+extern alias Drawing;using AltitudeAngelWings;using MissionPlanner.Utilities.AltitudeAngel;
+#endif
 
 using GMap.NET.WindowsForms;
 using log4net;
@@ -9,7 +11,7 @@ using MissionPlanner.GCSViews.ConfigurationView;
 using MissionPlanner.Log;
 using MissionPlanner.Maps;
 using MissionPlanner.Utilities;
-using MissionPlanner.Utilities.AltitudeAngel;
+
 using MissionPlanner.Warnings;
 using SkiaSharp;
 using System;
@@ -32,8 +34,7 @@ using System.Windows.Forms;
 using MissionPlanner.ArduPilot.Mavlink;
 using MissionPlanner.Utilities.HW;
 using Transitions;
-using AltitudeAngelWings;
-
+using System.Linq;
 
 namespace MissionPlanner
 {
@@ -392,6 +393,8 @@ namespace MissionPlanner
                 if (_comPort == value)
                     return;
                 _comPort = value;
+                if (instance == null)
+                    return;
                 _comPort.MavChanged -= instance.comPort_MavChanged;
                 _comPort.MavChanged += instance.comPort_MavChanged;
                 instance.comPort_MavChanged(null, null);
@@ -416,7 +419,7 @@ namespace MissionPlanner
 
         public ConcurrentDictionary<string, adsb.PointLatLngAltHdg> adsbPlanes = new ConcurrentDictionary<string, adsb.PointLatLngAltHdg>();
 
-        string titlebar;
+        public static string titlebar;
 
         /// <summary>
         /// Comport name
@@ -661,6 +664,18 @@ namespace MissionPlanner
 
             // create one here - but override on load
             Settings.Instance["guid"] = Guid.NewGuid().ToString();
+            
+            //Check for -config argument, and if it is an xml extension filename then use that for config
+            if (Program.args.Length > 0 && Program.args.Contains("-config"))
+            {
+                var cmds = ProcessCommandLine(Program.args);  //This will be called later as well, but we need it here and now
+                if (cmds.ContainsKey("config") &&
+                     (cmds["config"] != null) &&
+                     (String.Compare(Path.GetExtension(cmds["config"]), ".xml", true) == 0))
+                {
+                    Settings.FileName = cmds["config"];
+                }
+            }
 
             // load config
             LoadConfig();
@@ -737,7 +752,8 @@ namespace MissionPlanner
 
             try
             {
-                speechEngine = new Speech();
+                if(speechEngine == null)
+                    speechEngine = new Speech();
                 MAVLinkInterface.Speech = speechEngine;
                 CurrentState.Speech = speechEngine;
             }
@@ -1481,17 +1497,29 @@ namespace MissionPlanner
                     // do autoscan
                     Comms.CommsSerialScan.Scan(true);
                     DateTime deadline = DateTime.Now.AddSeconds(50);
-                    while (Comms.CommsSerialScan.foundport == false || Comms.CommsSerialScan.run == 1)
+                    ProgressReporterDialogue prd = new ProgressReporterDialogue();
+                    prd.UpdateProgressAndStatus(-1, "Waiting for ports");
+                    prd.DoWork += sender =>
                     {
-                        System.Threading.Thread.Sleep(500);
-                        Console.WriteLine("wait for port " + CommsSerialScan.foundport + " or " + CommsSerialScan.run);
-                        if (DateTime.Now > deadline)
+                        while (Comms.CommsSerialScan.foundport == false || Comms.CommsSerialScan.run == 1)
                         {
-                            CustomMessageBox.Show(Strings.Timeout);
-                            _connectionControl.IsConnected(false);
-                            return;
+                            System.Threading.Thread.Sleep(500);
+                            Console.WriteLine("wait for port " + CommsSerialScan.foundport + " or " +
+                                              CommsSerialScan.run);
+                            if (sender.doWorkArgs.CancelRequested)
+                            {
+                                sender.doWorkArgs.CancelAcknowledged = true;
+                                return;
+                            }
+
+                            if (DateTime.Now > deadline)
+                            {
+                                _connectionControl.IsConnected(false);
+                                throw new Exception(Strings.Timeout);
+                            }
                         }
-                    }
+                    };
+                    prd.RunBackgroundOperationAsync();
                     return;
                 default:
                     comPort.BaseStream = new SerialPort();
@@ -1975,8 +2003,10 @@ namespace MissionPlanner
             Settings.Instance["MainLocY"] = this.Location.Y.ToString();
 
             log.Info("close logs");
-            AltitudeAngel.Dispose();
 
+#if !LIB
+            AltitudeAngel.Dispose();
+#endif
             // close bases connection
             try
             {
@@ -2437,7 +2467,7 @@ namespace MissionPlanner
                         if (!nextrun.ContainsKey(plugin))
                             nextrun[plugin] = DateTime.MinValue;
 
-                        if (DateTime.Now > plugin.NextRun)
+                        if ((DateTime.Now > plugin.NextRun) && (plugin.loopratehz > 0))
                         {
                             // get ms till next run
                             int msnext = (int)(1000 / plugin.loopratehz);
@@ -2527,12 +2557,12 @@ namespace MissionPlanner
 
                     try
                     {
-                        if (GCSViews.ConfigTerminal.comPort is MAVLinkSerialPort)
+                        if (ConfigTerminal.comPort is MAVLinkSerialPort)
                         {
                         }
                         else
                         {
-                            if (GCSViews.ConfigTerminal.comPort != null && GCSViews.ConfigTerminal.comPort.IsOpen)
+                            if (ConfigTerminal.comPort != null && ConfigTerminal.comPort.IsOpen)
                                 continue;
                         }
                     }
@@ -3088,7 +3118,10 @@ namespace MissionPlanner
 
             //ThreadPool.QueueUserWorkItem(BGGetAlmanac);
 
-            ThreadPool.QueueUserWorkItem(BGgetTFR);
+            ThreadPool.QueueUserWorkItem(BGLogMessagesMetaData);
+
+            // tfr went dead on 30-9-2020
+            //ThreadPool.QueueUserWorkItem(BGgetTFR);
 
             ThreadPool.QueueUserWorkItem(BGNoFly);
 
@@ -3096,6 +3129,17 @@ namespace MissionPlanner
 
             // update firmware version list - only once per day
             ThreadPool.QueueUserWorkItem(BGFirmwareCheck);
+
+            ThreadPool.QueueUserWorkItem((s) =>
+            {
+                try
+                {
+                    UserAlert.GetAlerts();
+                }
+                catch
+                {
+                }
+            });
 
             log.Info("start AutoConnect");
             AutoConnect.NewMavlinkConnection += (sender, serial) =>
@@ -3200,57 +3244,71 @@ namespace MissionPlanner
 
             GStreamer.onNewImage += (sender, image) =>
             {
-                if (image == null)
+                try
                 {
-                    GCSViews.FlightData.myhud.bgimage = null;
-                    return;
-                }
+                    if (image == null)
+                    {
+                        GCSViews.FlightData.myhud.bgimage = null;
+                        return;
+                    }
 
-                if (!(image is Drawing::System.Drawing.Bitmap bmp))
-                    return;
-                var old = GCSViews.FlightData.myhud.bgimage;
-                GCSViews.FlightData.myhud.bgimage = new Bitmap(image.Width, image.Height, 4 * image.Width,
-                    PixelFormat.Format32bppPArgb,
-                    bmp.LockBits(Rectangle.Empty, null, SKColorType.Bgra8888)
-                    .Scan0);
-                if (old != null)
-                    old.Dispose();
+                    var old = GCSViews.FlightData.myhud.bgimage;
+                    GCSViews.FlightData.myhud.bgimage = new Bitmap(image.Width, image.Height, 4 * image.Width,
+                        PixelFormat.Format32bppPArgb,
+                        image.LockBits(Rectangle.Empty, null, SKColorType.Bgra8888)
+                            .Scan0);
+                    if (old != null)
+                        old.Dispose();
+                }
+                catch
+                {
+                }
             };
 
             vlcrender.onNewImage += (sender, image) =>
             {
-                if (image == null)
+                try
                 {
-                    GCSViews.FlightData.myhud.bgimage = null;
-                    return;
+                    if (image == null)
+                    {
+                        GCSViews.FlightData.myhud.bgimage = null;
+                        return;
+                    }
+
+                    var old = GCSViews.FlightData.myhud.bgimage;
+                    GCSViews.FlightData.myhud.bgimage = new Bitmap(image.Width,
+                        image.Height,
+                        4 * image.Width,
+                        PixelFormat.Format32bppPArgb,
+                        image.LockBits(Rectangle.Empty, null, SKColorType.Bgra8888).Scan0);
+                    if (old != null)
+                        old.Dispose();
                 }
-                if (!(image is Drawing::System.Drawing.Bitmap bmp))
-                    return;
-                var old = GCSViews.FlightData.myhud.bgimage;
-                GCSViews.FlightData.myhud.bgimage = new Bitmap(image.Width,
-                                                               image.Height,
-                                                               4 * image.Width,
-                                                               PixelFormat.Format32bppPArgb,
-                                                               bmp.LockBits(Rectangle.Empty, null, SKColorType.Bgra8888).Scan0);
-                if (old != null)
-                    old.Dispose();
+                catch
+                {
+                }
             };
 
             CaptureMJPEG.onNewImage += (sender, image) =>
             {
-                if (image == null)
+                try
                 {
-                    GCSViews.FlightData.myhud.bgimage = null;
-                    return;
+                    if (image == null)
+                    {
+                        GCSViews.FlightData.myhud.bgimage = null;
+                        return;
+                    }
+
+                    var old = GCSViews.FlightData.myhud.bgimage;
+                    GCSViews.FlightData.myhud.bgimage = new Bitmap(image.Width, image.Height, 4 * image.Width,
+                        PixelFormat.Format32bppPArgb,
+                        image.LockBits(Rectangle.Empty, null, SKColorType.Bgra8888).Scan0);
+                    if (old != null)
+                        old.Dispose();
                 }
-                if (!(image is Drawing::System.Drawing.Bitmap bmp))
-                    return;
-                var old = GCSViews.FlightData.myhud.bgimage;
-                GCSViews.FlightData.myhud.bgimage = new Bitmap(image.Width, image.Height, 4 * image.Width,
-                                                               PixelFormat.Format32bppPArgb,
-                                                               bmp.LockBits(Rectangle.Empty, null, SKColorType.Bgra8888).Scan0);
-                if (old != null)
-                    old.Dispose();
+                catch
+                {
+                }
             };
 
             try
@@ -3290,10 +3348,12 @@ namespace MissionPlanner
             {
                 if (!MONO)
                 {
+#if !LIB
                     log.Info("Load AltitudeAngel");
                     AltitudeAngel.Configure();
                     AltitudeAngel.Initialize();
                     log.Info("Load AltitudeAngel... Done");
+#endif
                 }
             }
             catch (TypeInitializationException) // windows xp lacking patch level
@@ -3537,13 +3597,19 @@ namespace MissionPlanner
             GMapMarkerBase.DisplayTarget = Settings.Instance.GetBoolean("GMapMarkerBase_DisplayTarget", true);
         }
 
+        private async void BGLogMessagesMetaData(object nothing)
+        {
+            await LogMetaData.GetMetaData();
+            LogMetaData.ParseMetaData();
+        }
+
         public void LoadGDALImages(object nothing)
         {
             if (Settings.Instance.ContainsKey("GDALImageDir"))
             {
                 try
                 {
-                    GDAL.GDAL.ScanDirectory(Settings.Instance["GDALImageDir"]);
+                    Utilities.GDAL.ScanDirectory(Settings.Instance["GDALImageDir"]);
                 }
                 catch (Exception ex)
                 {
@@ -3746,7 +3812,7 @@ namespace MissionPlanner
         /// <returns></returns>
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
-            if (GCSViews.ConfigTerminal.SSHTerminal) { return false; }
+            if (ConfigTerminal.SSHTerminal) { return false; }
             if (keyData == Keys.F12)
             {
                 MenuConnect_Click(null, null);
@@ -4098,15 +4164,15 @@ namespace MissionPlanner
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal class DEV_BROADCAST_HDR
+        public class DEV_BROADCAST_HDR
         {
-            internal Int32 dbch_size;
-            internal Int32 dbch_devicetype;
-            internal Int32 dbch_reserved;
+            public Int32 dbch_size;
+            public Int32 dbch_devicetype;
+            public Int32 dbch_reserved;
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        internal class DEV_BROADCAST_PORT
+        public class DEV_BROADCAST_PORT
         {
             public int dbcp_size;
             public int dbcp_devicetype;
@@ -4115,17 +4181,17 @@ namespace MissionPlanner
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-        internal class DEV_BROADCAST_DEVICEINTERFACE
+        public class DEV_BROADCAST_DEVICEINTERFACE
         {
             public Int32 dbcc_size;
             public Int32 dbcc_devicetype;
             public Int32 dbcc_reserved;
 
             [MarshalAs(UnmanagedType.ByValArray, ArraySubType = UnmanagedType.U1, SizeConst = 16)]
-            internal Byte[]
+            public Byte[]
                 dbcc_classguid;
 
-            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 255)] internal Byte[] dbcc_name;
+            [MarshalAs(UnmanagedType.ByValArray, SizeConst = 255)] public Byte[] dbcc_name;
         }
 
 

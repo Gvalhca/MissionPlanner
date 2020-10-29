@@ -19,10 +19,15 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
+#if !LIB
+using JetBrains.Profiler.Api;
+using JetBrains.Profiler.SelfApi;
+#endif
 using Microsoft.Diagnostics.Runtime;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 using Architecture = System.Runtime.InteropServices.Architecture;
+using Trace = System.Diagnostics.Trace;
 
 namespace MissionPlanner
 {
@@ -84,6 +89,25 @@ namespace MissionPlanner
             Start(args);
         }
 
+        public static async void TraceMe(bool start = true)
+        {
+#if !LIB
+            if (start)
+            {
+                await DotTrace.EnsurePrerequisiteAsync();
+                Directory.CreateDirectory("C:\\Temp\\Snapshot");
+                var config = new DotTrace.Config();
+                config.SaveToDir("C:\\Temp\\Snapshot");
+                DotTrace.Attach(config);
+                DotTrace.StartCollectingData();
+            }
+            else
+            {
+                DotTrace.StopCollectingData();
+                DotTrace.SaveData();
+            }
+#endif
+        }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public static void Start(string[] args)
@@ -165,13 +189,15 @@ namespace MissionPlanner
 
             try
             {
-                var file = NativeLibrary.GetLibraryPathname("libSkiaSharp");
+                var file = MissionPlanner.Utilities.NativeLibrary.GetLibraryPathname("libSkiaSharp");
                 log.Info(file);
-                IntPtr ptr;
-                if(MONO)
-                    ptr = NativeLibrary.dlopen(file+".so", NativeLibrary.RTLD_NOW);
-                else
-                    ptr = NativeLibrary.LoadLibrary(file+".dll");
+                IntPtr ptr = IntPtr.Zero;
+
+                if (MONO)
+                    ptr = MissionPlanner.Utilities.NativeLibrary.dlopen(file + ".so",
+                        MissionPlanner.Utilities.NativeLibrary.RTLD_NOW);
+                if (ptr == IntPtr.Zero)
+                    ptr = MissionPlanner.Utilities.NativeLibrary.LoadLibrary(file + ".dll");
 
                 if (ptr != IntPtr.Zero)
                 {
@@ -263,7 +289,13 @@ namespace MissionPlanner
 
             // optionally add gdal support
             if (Directory.Exists(Application.StartupPath + Path.DirectorySeparatorChar + "gdal"))
-                GMap.NET.MapProviders.GMapProviders.List.Add(GDAL.GDALProvider.Instance);
+            {
+#if !LIB
+                // net461
+                MissionPlanner.Utilities.GDAL.GDALBase = new GDAL.GDAL();
+#endif
+                GMap.NET.MapProviders.GMapProviders.List.Add(MissionPlanner.Utilities.GDAL.GetProvider());
+            }
 
             // add proxy settings
             GMap.NET.MapProviders.GMapProvider.WebProxy = WebRequest.GetSystemWebProxy();
@@ -297,7 +329,7 @@ namespace MissionPlanner
 
             try
             {
-                log.Debug(Process.GetCurrentProcess().Modules.ToJSON());
+                //log.Debug(Process.GetCurrentProcess().Modules.ToJSON());
             }
             catch
             {
@@ -679,12 +711,6 @@ namespace MissionPlanner
                        
                     }
 
-                    // Create a request using a URL that can receive a post.
-                    WebRequest request = WebRequest.Create("http://vps.oborne.me/mail.php");
-                    request.Timeout = 10000; // 10 sec
-                    // Set the Method property of the request to POST.
-                    request.Method = "POST";
-                    // Create POST data and convert it to a byte array.
                     string postData = "message=" + Environment.OSVersion.VersionString + " " +
                                       System.Reflection.Assembly.GetExecutingAssembly().GetName().Version.ToString()
                                       + " " + Application.ProductVersion
@@ -694,35 +720,7 @@ namespace MissionPlanner
                                       + "\ndata " + data
                                       + "\nmessage " + message.Replace('&', ' ').Replace('=', ' ')
                                       + "\n\n" + processinfo;
-                    byte[] byteArray = Encoding.ASCII.GetBytes(postData);
-                    // Set the ContentType property of the WebRequest.
-                    request.ContentType = "application/x-www-form-urlencoded";
-                    // Set the ContentLength property of the WebRequest.
-                    request.ContentLength = byteArray.Length;
-                    // Get the request stream.
-                    using (Stream dataStream = request.GetRequestStream())
-                    {
-                        // Write the data to the request stream.
-                        dataStream.Write(byteArray, 0, byteArray.Length);
-                    }
-                    // Get the response.
-                    using (WebResponse response = request.GetResponse())
-                    {
-                        // Display the status.
-                        Console.WriteLine(((HttpWebResponse)response).StatusDescription);
-                        // Get the stream containing content returned by the server.
-                        using (Stream dataStream = response.GetResponseStream())
-                        {
-                            // Open the stream using a StreamReader for easy access.
-                            using (StreamReader reader = new StreamReader(dataStream))
-                            {
-                                // Read the content.
-                                string responseFromServer = reader.ReadToEnd();
-                                // Display the content.
-                                Console.WriteLine(responseFromServer);
-                            }
-                        }
-                    }
+                    Download.PostAsync("http://vps.oborne.me/mail.php", postData);
                 }
                 catch (Exception exp)
                 {
@@ -744,30 +742,5 @@ namespace MissionPlanner
         [DllImport("__Internal")]
         public static extern void mono_threads_request_thread_dump();
 
-        private static StackTrace GetStackTrace(Thread targetThread)
-        {
-            StackTrace stackTrace = null;
-            var ready = new ManualResetEventSlim();
-
-            new Thread(() =>
-            {
-                // Backstop to release thread in case of deadlock:
-                ready.Set();
-                Thread.Sleep(200);
-                try { targetThread.Resume(); } catch { }
-            }).Start();
-
-            ready.Wait();
-            targetThread.Suspend();
-            try { stackTrace = new StackTrace(targetThread, true); }
-            catch { /* Deadlock */ }
-            finally
-            {
-                try { targetThread.Resume(); }
-                catch { stackTrace = null;  /* Deadlock */  }
-            }
-
-            return stackTrace;
-        }
     }
 }

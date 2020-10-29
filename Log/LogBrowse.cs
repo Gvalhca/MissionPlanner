@@ -2669,6 +2669,8 @@ main()
 
         private void treeView1_NodeMouseClick(object sender, TreeNodeMouseClickEventArgs e)
         {
+            toolTip1.Hide(treeView1);
+
             if (e.Node != null && e.Node.Parent != null)
             {
                 // set the check if we right click
@@ -3354,6 +3356,31 @@ main()
         private void chk_events_CheckedChanged(object sender, EventArgs e)
         {
             zg1_ZoomEvent(zg1, null, null);
+        }
+
+        private void treeView1_TreeNodeMouseHover(object sender, TreeNodeMouseHoverEventArgs e)
+        {
+            var pos = treeView1.PointToClient(Control.MousePosition);
+            var node = treeView1.GetNodeAt(pos);
+            if (node != null)
+            {
+                var items = node.FullPath.Split('\\');
+                if (items.Length >= 2 && LogMetaData.MetaData.ContainsKey(items[0]) &&
+                    LogMetaData.MetaData[items[0]].ContainsKey(items[items.Length - 1]))
+                {
+                    var desc = LogMetaData.MetaData[items[0]][items[items.Length - 1]];
+                    pos.Y -= 30;
+                    pos.X += 30;
+                    toolTip1.Show(desc, treeView1, pos, 2000);
+                } else if (items.Length == 1 && LogMetaData.MetaData.ContainsKey(items[0]) &&
+                           LogMetaData.MetaData[items[0]].ContainsKey("description"))
+                {
+                    var desc = LogMetaData.MetaData[items[0]]["description"];
+                    pos.Y -= 30;
+                    pos.X += 30;
+                    toolTip1.Show(desc, treeView1, pos, 2000);
+                }
+            }
         }
     }
 }

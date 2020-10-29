@@ -3,6 +3,7 @@ using MissionPlanner;
 using MissionPlanner.Comms;
 using MissionPlanner.Utilities;
 using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Reflection;
@@ -34,8 +35,6 @@ namespace Xamarin
         public App()
         {
             InitializeComponent();
-
-            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
             log4net.Repository.Hierarchy.Hierarchy hierarchy =
                 (Hierarchy)log4net.LogManager.GetRepository(Assembly.GetAssembly(typeof(App)));
@@ -76,7 +75,7 @@ namespace Xamarin
         protected override void OnStart()
         {
             // Handle when your app starts
-
+            /*
             Task.Run(async () =>
             {
                 try
@@ -102,30 +101,7 @@ namespace Xamarin
                     Log.Warning("", ex.ToString());
                 }
             });
-
-            // setup http server
-            try
-            {
-                log.Info("start http");
-                httpthread = new Thread(new httpserver().listernforclients)
-                {
-                    Name = "motion jpg stream-network kml",
-                    IsBackground = true
-                };
-                httpthread.Start();
-            }
-            catch (Exception ex)
-            {
-                log.Error("Error starting TCP listener thread: ", ex);
-                CustomMessageBox.Show(ex.ToString());
-            }
-
-            CustomMessageBox.ShowEvent += CustomMessageBox_ShowEvent;
-            MAVLinkInterface.CreateIProgressReporterDialogue += CreateIProgressReporterDialogue;
-
-            Task.Run(() => { MainV2.instance.SerialReader(); });
-
-            var mp = MainPage;
+            */
         }
 
         private CustomMessageBox.DialogResult CustomMessageBox_ShowEvent(string text, string caption = "",
@@ -198,8 +174,6 @@ namespace Xamarin
                 mav.Open(false, true);
 
                 mav.getParamList();
-                //mav.getParamListAsync(mav.MAV.sysid, mav.MAV.compid).ConfigureAwait(false);
-
             }
             catch (Exception ex)
             {

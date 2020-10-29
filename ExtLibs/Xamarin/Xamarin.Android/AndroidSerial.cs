@@ -1,5 +1,6 @@
 ﻿using Hoho.Android.UsbSerial.Util;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -9,9 +10,9 @@ namespace MissionPlanner.Comms
 {
     public class AndroidSerial : Stream, ICommsSerial
     {
-        public CircularBuffer<byte> readbuffer = new CircularBuffer<byte>(1024 * 10);
-        public CircularBuffer<byte> writebuffer = new CircularBuffer<byte>(1024 * 10);
+        MemoryStream readbuffer = new MemoryStream(1024*10);
         private SerialInputOutputManager serialIoManager;
+        private string _portName;
 
         public AndroidSerial(SerialInputOutputManager serialIoManager)
         {
@@ -19,9 +20,18 @@ namespace MissionPlanner.Comms
 
             serialIoManager.DataReceived += (sender, e) =>
             {
-                foreach (var b in e.Data)
+                lock(readbuffer)
                 {
-                    readbuffer.Add(b);
+                    if (readbuffer.Position == readbuffer.Length && readbuffer.Length > 0)
+                        readbuffer.SetLength(0);
+                    var pos = readbuffer.Position;
+                    // goto end
+                    readbuffer.Seek(0, SeekOrigin.End);
+                    //write
+                    readbuffer.Write(e.Data);
+                    // seek back to readpos
+                    readbuffer.Seek(pos, SeekOrigin.Begin);
+                    BytesToRead += e.Data.Length;
                 }
             };
             serialIoManager.ErrorReceived += (sender, e) => {  };
@@ -34,9 +44,13 @@ namespace MissionPlanner.Comms
 
         public Stream BaseStream => this;
 
-        public int BaudRate { get; set; }
+        public int BaudRate
+        {
+            get { return serialIoManager.BaudRate;}
+            set { serialIoManager.BaudRate = value; }
+        }
 
-        public int BytesToRead => readbuffer.Length();
+        public int BytesToRead { get; internal set; }
 
         public int BytesToWrite => 0;
 
@@ -45,7 +59,12 @@ namespace MissionPlanner.Comms
 
         public bool IsOpen => serialIoManager.IsOpen;
 
-        public string PortName { get; set; }
+        public string PortName
+        {
+            get => _portName;
+            set => _portName = value;
+        }
+
         public int ReadBufferSize { get; set; }
         public override int ReadTimeout { get; set; }
         public bool RtsEnable { get; set; }
@@ -65,7 +84,11 @@ namespace MissionPlanner.Comms
 
         public void DiscardInBuffer()
         {
-            readbuffer.Clear();
+            lock (readbuffer)
+            {
+                readbuffer.SetLength(0);
+                BytesToRead = 0;
+            }
         }
 
         public new void Dispose()
@@ -93,8 +116,8 @@ namespace MissionPlanner.Comms
         public string ReadExisting()
         {
             StringBuilder build = new StringBuilder();
-            for (int a = 0; a < readbuffer.Length(); a++)
-                build.Append((char)readbuffer.Read());
+            for (int a = 0; a < BytesToRead; a++)
+                build.Append((char) ReadByte());
             return build.ToString();
         }
 
@@ -157,13 +180,16 @@ namespace MissionPlanner.Comms
             do
             {
                 Thread.Sleep(1);
-            } while (readbuffer.Length() < count && DateTime.Now < deadline);
+            } while (BytesToRead < count && DateTime.Now < deadline);
 
-            var read = Math.Min(count, readbuffer.Length());
-            for (int a = 0; a < read; a++)
+            var read = Math.Min(count, BytesToRead);
+
+            lock (readbuffer)
             {
-                buffer[offset + a] = readbuffer.Read();
+                read = readbuffer.Read(buffer, offset, read);
+                BytesToRead -= read;
             }
+
             return read;
         }
 

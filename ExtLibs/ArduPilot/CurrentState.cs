@@ -945,11 +945,14 @@ namespace MissionPlanner
                 log.Info("messageHigh " + value);
                 _messageHighTime = DateTime.Now;
                 _messagehigh = value;
+                messageHighSeverity = MAVLink.MAV_SEVERITY.EMERGENCY;
             }
         }
 
         string _messagehigh = "";
         DateTime _messageHighTime;
+
+        public MAVLink.MAV_SEVERITY messageHighSeverity { get; set; }
 
         //battery
         [GroupText("Battery")]
@@ -2138,6 +2141,15 @@ namespace MissionPlanner
                             try
                             {
                                 voltageflag = (uint)(MAVLink.MAV_POWER_STATUS)power.flags;
+
+                                if(voltageflag == (uint)MAVLink.MAV_POWER_STATUS.PERIPH_OVERCURRENT)
+                                {
+                                    messageHigh = "PERIPH_OVERCURRENT";
+                                } 
+                                else if(voltageflag == (uint)MAVLink.MAV_POWER_STATUS.PERIPH_HIPOWER_OVERCURRENT)
+                                {
+                                    messageHigh = "PERIPH_HIPOWER_OVERCURRENT";
+                                }
                             }
                             catch
                             {
@@ -2177,7 +2189,7 @@ namespace MissionPlanner
                                 // saftey switch
                                 if (armed && sensors_enabled.motor_control == false && sensors_enabled.seen)
                                 {
-                                    messageHigh = "(SAFE)";
+                                    messageHigh = "(SAFETY)";
                                 }
 
                                 // for future use

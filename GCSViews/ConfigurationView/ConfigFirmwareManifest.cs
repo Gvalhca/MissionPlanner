@@ -5,6 +5,7 @@ using MissionPlanner.Controls;
 using MissionPlanner.test;
 using MissionPlanner.Utilities;
 using System;
+using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Linq;
@@ -172,6 +173,18 @@ namespace MissionPlanner.GCSViews.ConfigurationView
         {
             var ports = Win32DeviceMgmt.GetAllCOMPorts();
 
+            if (ExtraDeviceInfo != null)
+            {
+                try
+                {
+                    ports.AddRange(ExtraDeviceInfo.Invoke());
+                }
+                catch
+                {
+
+                }
+            }
+
             if (alloptions)
                 ports.Add(default(ArduPilot.DeviceInfo));
 
@@ -321,6 +334,8 @@ namespace MissionPlanner.GCSViews.ConfigurationView
             return;
         }
 
+        public static Func<List<ArduPilot.DeviceInfo>> ExtraDeviceInfo;
+
         /// <summary>
         ///     for when updating fw to hardware
         /// </summary>
@@ -405,7 +420,21 @@ namespace MissionPlanner.GCSViews.ConfigurationView
                         }
                         else
                         {
-                            boardtype = BoardDetect.DetectBoard(MainV2.comPortName, Win32DeviceMgmt.GetAllCOMPorts());
+                            var ports = Win32DeviceMgmt.GetAllCOMPorts();
+
+                            if (ExtraDeviceInfo != null)
+                            {
+                                try
+                                {
+                                    ports.AddRange(ExtraDeviceInfo.Invoke());
+                                }
+                                catch
+                                {
+
+                                }
+                            }
+
+                            boardtype = BoardDetect.DetectBoard(MainV2.comPortName, ports);
                         }
 
                         if (boardtype == BoardDetect.boards.none)

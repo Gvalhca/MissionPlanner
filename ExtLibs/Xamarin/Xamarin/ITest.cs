@@ -9,8 +9,14 @@ namespace Xamarin
 {
     public class Test
     {
+        public static IBlueToothDevice BlueToothDevice { get; set; }
         public static IUSBDevices UsbDevices { get; set; }
         public static IRadio Radio { get; set; }
+    }
+
+    public interface IBlueToothDevice
+    {
+        Task<List<DeviceInfo>> GetDeviceInfoList();
     }
 
     public interface IRadio
@@ -44,6 +50,6 @@ namespace Xamarin
         /// </summary>
         void USBEventCallBack(object usbDeviceReceiver, object device);
 
-        event EventHandler<object> USBEvent;
+        event EventHandler<DeviceInfo> USBEvent;
     }
 }

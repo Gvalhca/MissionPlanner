@@ -17,9 +17,10 @@ namespace GDAL
     {
         public static readonly GDALProvider Instance;
 
-        GDALProvider()
+        public GDALProvider()
         {
             MaxZoom = 24;
+            BypassCache = true;
         }
 
         static GDALProvider()

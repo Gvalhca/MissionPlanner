@@ -3,13 +3,15 @@ using Android.Content;
 using Android.Hardware.Usb;
 using Android.Runtime;
 using Android.Util;
+using Hoho.Android.UsbSerial;
+using Hoho.Android.UsbSerial.Driver;
 
 namespace Xamarin.Droid
 {
     public class UsbDeviceReceiver
         : BroadcastReceiver
     {
-        readonly string TAG = typeof(UsbDeviceReceiver).Name;
+        readonly string TAG = "MP-"+typeof(UsbDeviceReceiver).Name;
         readonly Activity activity;
             
 
@@ -27,7 +29,10 @@ namespace Xamarin.Droid
                 "USB device: " + device.DeviceName + " " + device.ProductName + " " + device.VendorId + " " +
                 device.ProductId);
 
-            Test.UsbDevices.USBEventCallBack(this, device);
+            if (intent.Action.Equals(UsbManager.ActionUsbDeviceAttached))
+            {
+                Test.UsbDevices.USBEventCallBack(this, device);
+            }
         }
     }
 }

@@ -30,9 +30,9 @@ namespace MissionPlanner.Utilities
 
         static object _lock = new object();
 
-        private static event EventHandler<Image> _onNewImage;
+        private static event EventHandler<Bitmap> _onNewImage;
 
-        public static event EventHandler<Image> onNewImage
+        public static event EventHandler<Bitmap> onNewImage
         {
             add { _onNewImage += value; }
             remove { _onNewImage -= value; }
@@ -485,10 +485,10 @@ namespace MissionPlanner.Utilities
                         }
                         else
                         {
-                            log.Info("failed gst_app_sink_try_pull_sample "+ trys + "/60");
-                            trys++;
-                            if (trys > 60)
-                                break;
+                            log.Info("failed gst_app_sink_try_pull_sample "+ trys + "");
+                            //trys++;
+                            //if (trys > 60)
+                                //break;
                         }
                     }
                     catch (Exception ex)
@@ -1101,7 +1101,7 @@ namespace MissionPlanner.Utilities
                     ms.Seek(0, SeekOrigin.Begin);
                     try
                     {
-                        var temp = Image.FromStream(ms);
+                        var temp = Bitmap.FromStream(ms);
 
                         //File.WriteAllBytes(tempno + ".bmp", ms.ToArray());
 

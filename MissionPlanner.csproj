@@ -99,6 +99,7 @@
     <Reference Include="System.Speech" />
     <Reference Include="System.Web, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a" />
     <Reference Include="System.Web.Extensions" />
+    <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Updater, Version=1.0.7056.19890, Culture=neutral, processorArchitecture=MSIL">
       <HintPath>Updater\bin\Release\Updater.exe</HintPath>
@@ -106,6 +107,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="ExtLibs\7zip\7zip.csproj">
+      <Project>{1117efd6-3a46-47f7-9beb-02792d213b8d}</Project>
+      <Name>7zip</Name>
+    </ProjectReference>
     <ProjectReference Include="ExtLibs\alglibnet\alglibnet.csproj">
       <Project>{b994d8d2-c052-4616-9d20-386640c7387f}</Project>
       <Name>alglibnet</Name>
@@ -135,6 +140,10 @@
       <Project>{2a8e8af5-74e7-49db-a42e-9360fa7a6cc4}</Project>
       <Name>BaseClasses</Name>
     </ProjectReference>
+    <ProjectReference Include="ExtLibs\BouncyCastle\BouncyCastle.csproj">
+      <Project>{ba876930-f966-4dd3-8f60-966d6fe93b76}</Project>
+      <Name>BouncyCastle</Name>
+    </ProjectReference>
     <ProjectReference Include="ExtLibs\BSE.Windows.Forms\BSE.Windows.Forms.csproj">
       <Project>{9ca367b8-0b98-49d1-84fb-735e612e3ba9}</Project>
       <Name>BSE.Windows.Forms</Name>
@@ -151,6 +160,10 @@
       <Project>{59129078-7B12-4198-B93E-0AA08D0BB7ED}</Project>
       <Name>Core</Name>
       <Private>true</Private>
+    </ProjectReference>
+    <ProjectReference Include="ExtLibs\DirectShowLib\DirectShowLib.csproj">
+      <Project>{637a5d55-908e-4aee-b061-3981b66f1b9f}</Project>
+      <Name>DirectShowLib</Name>
     </ProjectReference>
     <ProjectReference Include="ExtLibs\GDAL\GDAL.NET.csproj">
       <Project>{766FCF85-4809-44DB-B316-6C4902C65245}</Project>
@@ -273,6 +286,10 @@
       <Project>{78AC6375-28AF-4175-9F20-B5099C92EA2B}</Project>
       <Name>WebCamService</Name>
     </ProjectReference>
+    <ProjectReference Include="ExtLibs\Xamarin.Forms.Platform.WinForms\Xamarin.Forms.Platform.WinForms.csproj">
+      <Project>{563d7c2e-14e2-47ec-95e4-4ea0bba75c18}</Project>
+      <Name>Xamarin.Forms.Platform.WinForms</Name>
+    </ProjectReference>
     <ProjectReference Include="ExtLibs\ZedGraph\ZedGraph.csproj">
       <Project>{2541686B-1673-43BF-AF89-3163945DB009}</Project>
       <Name>ZedGraph</Name>
@@ -288,9 +305,8 @@
       <Version>1.2.0</Version>
     </PackageReference>
     <PackageReference Include="CSMatIO" version="1.0.20" targetFramework="netstandard2.0" requireReinstallation="true" />
-    <PackageReference Include="DirectShowLib" Version="1.0.0" />
     <PackageReference Include="DotNetZip">
-      <Version>1.13.7</Version>
+      <Version>1.13.8</Version>
     </PackageReference>
     <PackageReference Include="DotSpatial.Data" version="1.9" targetFramework="net462" />
     <PackageReference Include="DotSpatial.Data.Forms" version="1.9" targetFramework="net462" />
@@ -316,6 +332,9 @@
     <PackageReference Include="GeoJSON.Net" version="1.1.64" targetFramework="net462" />
     <PackageReference Include="IronPython" version="2.7.8.1" targetFramework="net462" />
     <PackageReference Include="IronPython.StdLib" version="2.7.8.1" targetFramework="net462" />
+    <PackageReference Include="JetBrains.Profiler.SelfApi">
+      <Version>2.0.2</Version>
+    </PackageReference>
     <PackageReference Include="log4net" version="2.0.8" targetFramework="net462" />
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp">
       <Version>3.6.0</Version>
@@ -354,8 +373,8 @@
       <Version>4.5.0</Version>
     </PackageReference>
     <PackageReference Include="Unofficial.ObjectListView" version="2.6.0" targetFramework="net40" />
-    <PackageReference Include="Xamarin.Forms.Platform.WinForms">
-      <Version>3.4.0-alpha</Version>
+    <PackageReference Include="Xamarin.Forms">
+      <Version>4.8.0.1560</Version>
     </PackageReference>
     <PackageReference Include="zlib.net" version="1.0.4.0" targetFramework="net40" />
   </ItemGroup>
@@ -382,6 +401,12 @@
     </Compile>
     <Compile Include="Controls\DigitalSkyUI.Designer.cs">
       <DependentUpon>DigitalSkyUI.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Controls\SerialOutputCoT.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Controls\SerialOutputCoT.Designer.cs">
+      <DependentUpon>SerialOutputCoT.cs</DependentUpon>
     </Compile>
     <Compile Include="Controls\GMAPCache.cs">
       <SubType>UserControl</SubType>
@@ -528,9 +553,6 @@
       <DependentUpon>MainV2.cs</DependentUpon>
     </Compile>
     <Compile Include="NativeMethods.cs" />
-    <None Include="ApplicationInsights.config">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Include="arm64\libSkiaSharp.so">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
@@ -538,34 +560,61 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Include="MissionPlanner.GCSViews.ConfigurationView.ConfigHWCompass2+CompassDeviceInfo.datasource" />
-    <None Include="plugins\example2-menu.cs">
+    <Compile Include="plugins\example2-menu.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="plugins\example3-fencedist.cs">
+    </Compile>
+    <Compile Include="plugins\example3-fencedist.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="plugins\example4-herelink.cs">
+    </Compile>
+    <Compile Include="plugins\example4-herelink.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="plugins\example5-latencytracker.cs">
+    </Compile>
+    <Compile Include="plugins\example5-latencytracker.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="plugins\example6-mapicondesc.cs">
+    </Compile>
+    <Compile Include="plugins\example6-mapicondesc.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Include="plugins\example7-canrtcm.cs">
+    </Compile>
+    <Compile Include="plugins\example7-canrtcm.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    </Compile>
     <None Include="plugins\InitialParamsCalculator.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Include="plugins\example8-modechange.cs">
+    <Compile Include="plugins\example8-modechange.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    </Compile>
     <None Include="plugins\generator.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>UserControl</SubType>
     </None>
+    <None Include="plugins\example.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example2.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example3.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example4.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example5.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example6.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example7.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="plugins\example8.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <Compile Include="plugins\example9-hudonoff.cs">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Radio\Models.cs" />
     <Compile Include="ResEdit.Designer.cs">
@@ -689,6 +738,9 @@
     <Compile Include="Log\LogStrings.Designer.cs">
       <DependentUpon>LogStrings.cs</DependentUpon>
     </Compile>
+    <EmbeddedResource Include="Controls\AuthKeys.ko-KR.resx">
+      <DependentUpon>AuthKeys.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Controls\ControlSensorsStatus.resx">
       <DependentUpon>ControlSensorsStatus.cs</DependentUpon>
     </EmbeddedResource>
@@ -697,6 +749,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\DigitalSkyUI.resx">
       <DependentUpon>DigitalSkyUI.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\EKFStatus.ko-KR.resx">
+      <DependentUpon>EKFStatus.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\PropagationSettings.ko-KR.resx">
+      <DependentUpon>PropagationSettings.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Controls\SerialOutputCoT.resx">
+      <DependentUpon>SerialOutputCoT.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Controls\GMAPCache.resx">
       <DependentUpon>GMAPCache.cs</DependentUpon>
@@ -752,8 +813,17 @@
     <EmbeddedResource Include="Controls\ProximityControl.resx">
       <DependentUpon>ProximityControl.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Controls\Vibration.ko-KR.resx">
+      <DependentUpon>Vibration.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigADSB.ko-KR.resx">
+      <DependentUpon>ConfigADSB.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigADSB.resx">
       <DependentUpon>ConfigADSB.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigAdvanced.ko-KR.resx">
+      <DependentUpon>ConfigAdvanced.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigFFT.resx">
       <DependentUpon>ConfigFFT.cs</DependentUpon>
@@ -822,6 +892,9 @@
     <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigParamLoading.resx">
       <DependentUpon>ConfigParamLoading.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigREPL.ko-KR.resx">
+      <DependentUpon>ConfigREPL.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigREPL.resx">
       <DependentUpon>ConfigREPL.cs</DependentUpon>
     </EmbeddedResource>
@@ -833,6 +906,12 @@
     </EmbeddedResource>
     <EmbeddedResource Include="GCSViews\ConfigurationView\ConfigUserDefined.resx">
       <DependentUpon>ConfigUserDefined.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="GCSViews\SITL.ko-KR.resx">
+      <DependentUpon>SITL.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Grid\GridUI.ko-KR.resx">
+      <DependentUpon>GridUI.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Joystick\JoystickAxis.resx" />
     <EmbeddedResource Include="Log\LogStrings.resx">
@@ -1708,6 +1787,12 @@
     <EmbeddedResource Include="Controls\RAW_Sensor.zh-TW.resx">
       <DependentUpon>RAW_Sensor.cs</DependentUpon>
     </EmbeddedResource>
+    <EmbeddedResource Include="Radio\Sikradio.ko-KR.resx">
+      <DependentUpon>Sikradio.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="resedit.ko-KR.resx">
+      <DependentUpon>ResEdit.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="ResEdit.resx">
       <DependentUpon>ResEdit.cs</DependentUpon>
     </EmbeddedResource>
@@ -1874,6 +1959,12 @@
       <DependentUpon>Splash.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Swarm\Sequence\LayoutEditor.resx" />
+    <EmbeddedResource Include="Swarm\WaypointLeader\WPControl.ko-KR.resx">
+      <DependentUpon>WPControl.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="temp.ko-KR.resx">
+      <DependentUpon>temp.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="temp.resx">
       <DependentUpon>temp.cs</DependentUpon>
     </EmbeddedResource>
@@ -4407,9 +4498,9 @@
     <Content Include="rotmat.py">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-    <None Include="plugins\example-watchbutton.cs">
+    <Compile Include="plugins\example-watchbutton.cs">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
+    </Compile>
     <None Include=".editorconfig" />
     <None Include="BurntKermit.mpsystheme">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -10,6 +10,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -28,6 +29,8 @@ namespace MissionPlanner.GCSViews
 
         string sitldirectory = Settings.GetUserDataDirectory() + "sitl" +
                                Path.DirectorySeparatorChar;
+
+        public static string BundledPath = "";
 
         GMapOverlay markeroverlay;
 
@@ -216,6 +219,28 @@ namespace MissionPlanner.GCSViews
 
         private async Task<string> CheckandGetSITLImage(string filename)
         {
+            if (BundledPath != "")
+            {
+                var file = filename;
+                if (!File.Exists(BundledPath + System.IO.Path.DirectorySeparatorChar + file))
+                {
+                    file = file.ToLower();
+                    file = file.Replace("apmrover2", "ardurover");
+                    file = file.Replace(".exe","");
+                    file = file.Replace(".elf","");
+                    if (!File.Exists(BundledPath + System.IO.Path.DirectorySeparatorChar + file))
+                    {
+                        file = "lib" + file + ".so";
+                        if (!File.Exists(BundledPath + System.IO.Path.DirectorySeparatorChar + file))
+                        {
+                            return "";
+                        }
+                    }
+                }
+
+                return BundledPath + System.IO.Path.DirectorySeparatorChar + file;
+            }
+
             Uri fullurl = new Uri(sitlurl, filename);
 
             var load = Common.LoadingBox("Downloading", "Downloading sitl software");
@@ -443,6 +468,8 @@ namespace MissionPlanner.GCSViews
 
             try
             {
+                Console.WriteLine("sitl: {0} {1} {2}", exestart.WorkingDirectory, exestart.FileName,
+                    exestart.Arguments);
                 simulator.Add(System.Diagnostics.Process.Start(exestart));
             }
             catch (Exception ex)
